@@ -3,41 +3,115 @@ import { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Rect, Image, Group, Transformer } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
+import useImageStore from '@/store/image/ImageStore';
 
-const CLIP_RECT = { x: 732, y: 240, width: 200, height: 250 };
+const CLIP_RECT = { x: 732, y: 240, width: 200, height: 284 };
+const RECT_INCHES = { height: 17, width: 12 };
+// const DPI = CLIP_RECT.width / 10; 
+const DPI = 16.66; 
+const RECT_PIXELS = {
+  width: RECT_INCHES.width * DPI,
+  height: RECT_INCHES.height * DPI
+};
 type EditableImageType = {
   handleImageEditOptions: any,
   imageUrls: [string]
 }
 
-const ImageLayers = ({ imageRef, imageUrl, handleImageEditOptions, isSelected, onSelect }) => {
-  const [image] = useImage(imageUrl);
+const ImageLayers = ({ imageRef, imageObject, handleImageEditOptions, isSelected, onSelect }) => {
+  const [image] = useImage(imageObject.url);
+  console.log("complete image ---> ",imageObject)
+  const updateImage = useImageStore((state) => state.updateImage)
+  const [metrics, setMetrics] = useState({
+    widthInches: imageObject.scaledWidth,
+    heightInches: imageObject.scaledHeight,
+    topPosition: imageObject.topPosition,
+    leftPosition: imageObject.leftPosition,
+    rotation: 0,
+    scaleX: 100,
+    scaleY: 100
+  });
+  const handleTransform = (e) => {
+    const node = e.target;
+    const rect = CLIP_RECT;
+    // console.log("e.target -----> ", node);
+    // Calculate position percentages (0-100)
+    const topPosition = ((node.y() - rect.y) / rect.height) * 100;
+    const leftPosition = ((node.x() - rect.x) / rect.width) * 100;
+    
+    // Calculate dimensions in inches
+    const widthInches = (node.width() * node.scaleX()) / DPI;
+    const heightInches = (node.height() * node.scaleY()) / DPI;
+    
+    // Calculate scale percentages (assuming initial scale is 100%)
+    const scaleX = node.scaleX() * 100;
+    const scaleY = node.scaleY() * 100;
+    updateImage(e.target.attrs.alt, {
+      width: widthInches,
+      height: heightInches
+    })
+    setMetrics({
+      widthInches,
+      heightInches,
+      topPosition,
+      leftPosition,
+      rotation: node.rotation(),
+      scaleX,
+      scaleY
+    });
+  };
+
+  useEffect(() => {
+    setMetrics({
+      widthInches: imageObject.scaledWidth,
+      heightInches: imageObject.scaledHeight,
+      topPosition: imageObject.topPosition,
+      leftPosition: imageObject.leftPosition,
+      rotation: 0,
+      scaleX: 100,
+      scaleY: 100
+    })
+    console.log("widthInches", metrics.widthInches);
+    console.log("heightInches", metrics.heightInches);
+    console.log("rotation", metrics.rotation);
+    console.log("scaleX", metrics.scaleX);
+    console.log("scaleY", metrics.scaleY);
+    // modify
+  },[ imageObject])
+  console.log("topPosition", imageObject.topPosition);
+  console.log("leftPosition", imageObject.leftPosition);
   return (
     <Image
     ref={imageRef}
     onMouseDown={(e) => {
       onSelect();
+      console.log(e.target.attrs.alt)
       handleImageEditOptions();
       e.cancelBubble = true; // Prevent event from reaching stage
     }}
     image={image}
-    x={CLIP_RECT.x}
-    y={CLIP_RECT.y}
+    x={imageObject.topPosition}
+    y={imageObject.leftPosition}
     draggable
-    alt='designs'
-    width={CLIP_RECT.width}
-    height={CLIP_RECT.height}
+    alt={imageObject.id}
+    width={metrics.widthInches * DPI }
+    height={metrics.heightInches * DPI}
     perfectDrawEnabled={false}
     shadowEnabled={isSelected}
     shadowColor="rgba(0,161,255,0.5)"
     shadowBlur={10}
+    onTransform={handleTransform}
+    onDragMove={handleTransform}
+    onDragEnd={handleTransform}
+    onTransformEnd={handleTransform}
     />
   );
 }
-const EditableImage = ({ handleImageEditOptions, imageUrls }: EditableImageType) => {
+const EditableImage = ({ handleImageEditOptions }: EditableImageType) => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const imageRefs = useRef<(Konva.Image | null)[]>([]);
   const transformerRef = useRef<Konva.Transformer>(null);
+  const images = useImageStore((state) => state.images)
 
   useEffect(() => {
     if (transformerRef.current) {
@@ -49,7 +123,7 @@ const EditableImage = ({ handleImageEditOptions, imageUrls }: EditableImageType)
       transformerRef.current.nodes(nodes);
       transformerRef.current.getLayer()?.batchDraw();
     }
-  }, [selectedIds, imageUrls]);
+  }, [selectedIds, images]);
 
   const handleSelect = (index: number, e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e && e.evt && e.evt.shiftKey) {
@@ -74,7 +148,7 @@ const EditableImage = ({ handleImageEditOptions, imageUrls }: EditableImageType)
   return (
     <>
       <Rect {...CLIP_RECT} stroke="black" dash={[10, 5]} onClick={handleStageClick}/>
-       {imageUrls && (
+       {images && (
         <Group
           clipX={CLIP_RECT.x}
           clipY={CLIP_RECT.y}
@@ -82,18 +156,18 @@ const EditableImage = ({ handleImageEditOptions, imageUrls }: EditableImageType)
           clipHeight={CLIP_RECT.height}
           onClick={handleStageClick}
         >
-          {imageUrls.map((image, index) => {
+          {images.map((image, index) => {
              return <ImageLayers  
                 key={index}
                 imageRef={(el) => (imageRefs.current[index] = el)}
-                imageUrl={image}
+                imageObject={image}
                 handleImageEditOptions={handleImageEditOptions}
                 isSelected={selectedIds.includes(index)}
                 onSelect={(e) => handleSelect(index, e)}
               />
           })}
         </Group>)}
-        {imageUrls && (
+        {images && (
           <Transformer
            ref={transformerRef}
            onMouseDown={() => handleImageEditOptions()}
@@ -201,8 +275,7 @@ const CropTool = () => {
   );
 };
 
-
-const KonvaCanvas = ({handleImageEditOptions, images}: any) => {
+const KonvaCanvas = ({handleImageEditOptions,  images}: any) => {
   const width = typeof window !== 'undefined' ? window.innerWidth - 70 : 800;
   const height = typeof window !== 'undefined' ? window.innerHeight - 125 : 600;
   const [image] = useImage('./ts.png');

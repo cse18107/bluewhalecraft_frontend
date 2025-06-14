@@ -58,16 +58,82 @@ const UploadImage = ({setImages}) => {
   const googleDriveButtonRef = useRef(null);
 
   // Handle device file upload
-  const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImages((values) => [...values, e.target.result]);
+  // const handleImageUpload = (event) => {
+  //   const file = event.target.files[0];
+  //   if (file) {
+  //     // Get file extension
+  //     const extension = file.name.split('.').pop();
+  
+  //     const reader = new FileReader();
+  //     reader.onload = (e) => {
+  //       // Create an image object to get dimensions
+  //       const img = new window.Image();
+  //       img.onload = function() {
+  //         console.log(this.width, this.height)
+  //         setImages({
+  //           name: file.name,
+  //           dataUrl: e.target.result,
+  //           extension: extension,
+  //           type: file.type,
+  //           size: file.size,
+  //           lastModified: file.lastModified,
+  //           width: this.width,          // natural width in pixels
+  //           height: this.height,        // natural height in pixels
+  //           scale: 1                   // default scale (you can modify this as needed)
+  //         });
+  //       };
+  //       img.src = e.target.result;
+  //     };
+  //     reader.readAsDataURL(file);
+  //   }
+  // };
+
+  const CLIP_RECT = { x: 732, y: 240, width: 200, height: 284 };
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = function() {
+        const imageWidth = this.width;
+        const imageHeight = this.height;
+        const imageAspectRatio = imageWidth / imageHeight;
+        const clipAspectRatio = CLIP_RECT.width / CLIP_RECT.height;
+
+        let scaledWidth, scaledHeight;
+
+        // Determine whether to scale by width or height
+        if (imageAspectRatio > clipAspectRatio) {
+          // Image is wider → constrain by width (200px)
+          scaledWidth = CLIP_RECT.width;
+          scaledHeight = scaledWidth / imageAspectRatio;
+        } else {
+          // Image is taller → constrain by height (284px)
+          scaledHeight = CLIP_RECT.height;
+          scaledWidth = scaledHeight * imageAspectRatio;
+        }
+
+        console.log("Original (px):", imageWidth, imageHeight);
+        console.log("Scaled (px):", scaledWidth, scaledHeight);
+
+        setImages({
+          name: file.name,
+          dataUrl: e.target.result,
+          width: imageWidth,
+          height: imageHeight,
+          scaledWidth: scaledWidth,  // Fits inside CLIP_RECT
+          scaledHeight: scaledHeight,
+          clipRect: CLIP_RECT,
+        });
       };
-      reader.readAsDataURL(file);
-    }
-  };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+};
+  
 
   // Load Dropbox script
   useEffect(() => {
@@ -140,7 +206,7 @@ const UploadImage = ({setImages}) => {
   const getGoogleDriveImageUrl = async (fileId: string, token: string) => {
     try {
       const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}?fields=webContentLink,thumbnailLink`,
+        `https://content.googleapis.com/drive/v2/files/${fileId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -151,7 +217,7 @@ const UploadImage = ({setImages}) => {
       const data = await response.json();
       console.log(data)
       if (data.thumbnailLink) {
-        setImageUrl(data.thumbnailLink);
+        setImages(data.thumbnailLink);
       } else {
         setError('No image URL found');
       }
@@ -180,7 +246,7 @@ const UploadImage = ({setImages}) => {
       window?.Dropbox?.choose({
         success: (files: any) => {
           if (files[0]?.link) {
-            setImageUrl(files[0].link);
+            setImages((values) => [...values, files[0].link]);
           }
         },
         error: (err: any) => setError(err.message || 'Dropbox error'),
@@ -246,13 +312,6 @@ const UploadImage = ({setImages}) => {
           <p className=''>Google Drive</p>
         </button>
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="p-3 mb-4 text-red-600 rounded-md bg-red-50">
-          Error: {error}
-        </div>
-      )}
 
       <div className="w-full p-4 bg-[#ebebeb] rounded-md">
         <p className='text-xl font-bold'>Print file requirements</p>
