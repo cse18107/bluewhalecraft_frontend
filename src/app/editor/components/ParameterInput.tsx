@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-const ParameterInput = ({title, id,  data=0, updateImage, unit}) => {
+const ParameterInput = ({title, field="", id,  data=0, updateImage, unit}) => {
   const [val, setVal] = useState(data);
+
   const handleValueChange = (value) => {
     setVal(value);
-    updateImage(id, {scaledWidth: value})
+    updateImage(id, {[field]: value*1})
   }
+  useEffect(() => {
+    setVal(data);
+  },[data])
   return (
     <div className="flex flex-col w-full gap-1 py-2">
         <p>{title}</p>

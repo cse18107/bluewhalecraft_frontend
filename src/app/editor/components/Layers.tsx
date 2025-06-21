@@ -34,8 +34,8 @@ const Layers = ({imageProp}) => {
       </div>
     </div>
     <div className="grid w-full grid-cols-2 gap-x-4">
-      <ParameterInput title={"Width"} id={imageProp?.id} data={imageProp?.scaledWidth} updateImage={updateImage} unit={"In"}/>
-      <ParameterInput title={"Height"} id={imageProp?.id} data={imageProp?.scaledHeight} updateImage={updateImage} unit={"In"}/>
+      <ParameterInput title={"Width"} field={"scaledWidth"} id={imageProp?.id} data={imageProp?.scaledWidth} updateImage={updateImage} unit={"In"}/>
+      <ParameterInput title={"Height"} field={"scaledHeight"} id={imageProp?.id} data={imageProp?.scaledHeight} updateImage={updateImage} unit={"In"}/>
       <ParameterInput title={"Rotate"} id={imageProp?.id} data={imageProp?.rotate || 0} updateImage={updateImage} unit={"deg"}/>
       <ParameterInput title={"Scale"} id={imageProp?.id} data={imageProp?.scale || 0} updateImage={updateImage} unit={"%"}/>
       <ParameterInput title={"Position left"} id={imageProp?.id} data={imageProp?.positionLeft || 0} updateImage={updateImage} unit={"%"}/>
